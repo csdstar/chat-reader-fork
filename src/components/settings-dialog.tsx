@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 export type SpeedLevel = 'slow' | 'medium' | 'fast';
 
@@ -29,6 +30,11 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ open, onOpenChange, settings, onSettingsChange }: SettingsDialogProps) {
+  const handleParagraphsChange = (value: number) => {
+    const clamped = Math.max(1, Math.min(10, value || 1));
+    onSettingsChange({ ...settings, paragraphsPerMessage: clamped });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -37,25 +43,28 @@ export function SettingsDialog({ open, onOpenChange, settings, onSettingsChange 
         </DialogHeader>
         
         <div className="space-y-6 py-4">
-          {/* 段落数 */}
+          {/* 段落数 - 滑动条 + 输入框 */}
           <div>
             <label className="text-sm font-medium text-zinc-700 mb-3 block">
               每次输出段落数
             </label>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => onSettingsChange({ ...settings, paragraphsPerMessage: n })}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    settings.paragraphsPerMessage === n
-                      ? 'bg-zinc-900 text-white'
-                      : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
+            <div className="flex items-center gap-4">
+              <input
+                type="range"
+                min="1"
+                max="10"
+                value={settings.paragraphsPerMessage}
+                onChange={(e) => handleParagraphsChange(Number(e.target.value))}
+                className="flex-1 h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-zinc-900"
+              />
+              <Input
+                type="number"
+                min="1"
+                max="10"
+                value={settings.paragraphsPerMessage}
+                onChange={(e) => handleParagraphsChange(Number(e.target.value))}
+                className="w-16 text-center"
+              />
             </div>
           </div>
 

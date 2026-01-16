@@ -2,7 +2,7 @@
 
 > 一个伪装成 ChatGPT 的小说阅读器，让你在办公室"认真工作"的同时享受阅读的乐趣。
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/liuzhao1225/chat-reader)
+**🌐 在线体验：[https://chat-reader-eta.vercel.app](https://chat-reader-eta.vercel.app)**
 
 ![Demo](./demo.gif)
 
@@ -19,7 +19,9 @@
 
 ### 在线部署（推荐）
 
-点击上方 **Deploy with Vercel** 按钮，一键部署到 Vercel。
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/liuzhao1225/chat-reader)
+
+点击上方按钮，一键部署到 Vercel。
 
 ### 本地运行
 
@@ -35,7 +37,7 @@ npm install
 npm run dev
 ```
 
-打开 http://localhost:8889 开始使用。
+打开 http://localhost:3000 开始使用。
 
 ## 📖 使用方法
 

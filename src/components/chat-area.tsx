@@ -4,7 +4,7 @@ import { useRef, useEffect, forwardRef } from 'react';
 import { MessageBubble } from './message-bubble';
 import { ChatInput } from './chat-input';
 import type { Message, Book } from '@/types';
-import { Settings } from 'lucide-react';
+import { Settings, Github } from 'lucide-react';
 
 interface ChatAreaProps {
   messages: Message[];
@@ -30,13 +30,24 @@ export const ChatArea = forwardRef<HTMLTextAreaElement, ChatAreaProps>(
         <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-100">
           <div />
           <span className="text-sm font-medium text-zinc-800">ChatGPT 4o</span>
-          <button
-            onClick={onOpenSettings}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 transition-colors"
-            title="设置"
-          >
-            <Settings className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <a
+              href="https://github.com/liuzhao1225/chat-reader"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 transition-colors"
+              title="GitHub"
+            >
+              <Github className="h-4 w-4" />
+            </a>
+            <button
+              onClick={onOpenSettings}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 transition-colors"
+              title="设置"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* 聊天内容 - 可滚动，滚动条始终占位 */}
