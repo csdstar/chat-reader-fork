@@ -1,0 +1,55 @@
+'use client';
+
+import { useState, forwardRef } from 'react';
+import { ArrowUp } from 'lucide-react';
+
+interface ChatInputProps {
+  onSend: (message: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}
+
+export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
+  function ChatInput({ onSend, disabled, placeholder = '有问题，尽管问' }, ref) {
+    const [value, setValue] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!value.trim() || disabled) return;
+      onSend(value.trim());
+      setValue('');
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSubmit(e);
+      }
+    };
+
+    return (
+      <form onSubmit={handleSubmit} className="relative">
+        <div className="flex items-end gap-2 rounded-3xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+          <textarea
+            ref={ref}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={disabled}
+            rows={1}
+            className="flex-1 resize-none bg-transparent text-sm text-zinc-800 placeholder:text-zinc-400 focus:outline-none disabled:opacity-50"
+            style={{ minHeight: '24px', maxHeight: '200px' }}
+          />
+          <button
+            type="submit"
+            disabled={disabled || !value.trim()}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-white transition-opacity hover:opacity-80 disabled:opacity-30"
+          >
+            <ArrowUp className="h-4 w-4" />
+          </button>
+        </div>
+      </form>
+    );
+  }
+);
