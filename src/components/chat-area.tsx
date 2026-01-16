@@ -10,12 +10,14 @@ interface ChatAreaProps {
   messages: Message[];
   book: Book | null;
   isStreaming: boolean;
+  fontSize: number;
   onSendMessage: (content: string) => void;
+  onSkipStreaming: () => void;
   onOpenSettings: () => void;
 }
 
 export const ChatArea = forwardRef<HTMLTextAreaElement, ChatAreaProps>(
-  function ChatArea({ messages, book, isStreaming, onSendMessage, onOpenSettings }, inputRef) {
+  function ChatArea({ messages, book, isStreaming, fontSize, onSendMessage, onSkipStreaming, onOpenSettings }, inputRef) {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -60,8 +62,20 @@ export const ChatArea = forwardRef<HTMLTextAreaElement, ChatAreaProps>(
             )}
             
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+              <MessageBubble key={msg.id} message={msg} fontSize={fontSize} />
             ))}
+            
+            {isStreaming && (
+              <div className="flex gap-4 mb-6">
+                <div className="w-8" />
+                <button
+                  onClick={onSkipStreaming}
+                  className="px-4 py-1.5 text-sm text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-full transition-colors"
+                >
+                  立即回答
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

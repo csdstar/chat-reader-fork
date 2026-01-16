@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, forwardRef } from 'react';
+import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { ArrowUp } from 'lucide-react';
 
 interface ChatInputProps {
@@ -12,15 +12,22 @@ interface ChatInputProps {
 export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
   function ChatInput({ onSend, disabled, placeholder = '有问题，尽管问' }, ref) {
     const [value, setValue] = useState('');
+    const isComposingRef = useRef(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    useImperativeHandle(ref, () => textareaRef.current!, []);
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
-      if (!value.trim() || disabled) return;
+      if (disabled) return;
       onSend(value.trim());
       setValue('');
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
+      // 如果正在 IME 组合输入中，不处理回车
+      if (isComposingRef.current) return;
+      
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         handleSubmit(e);
@@ -31,10 +38,12 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
       <form onSubmit={handleSubmit} className="relative">
         <div className="flex items-end gap-2 rounded-3xl border border-zinc-200 bg-zinc-50 px-4 py-3">
           <textarea
-            ref={ref}
+            ref={textareaRef}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
+            onCompositionStart={() => { isComposingRef.current = true; }}
+            onCompositionEnd={() => { isComposingRef.current = false; }}
             placeholder={placeholder}
             disabled={disabled}
             rows={1}
@@ -43,7 +52,7 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
           />
           <button
             type="submit"
-            disabled={disabled || !value.trim()}
+            disabled={disabled}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-white transition-opacity hover:opacity-80 disabled:opacity-30"
           >
             <ArrowUp className="h-4 w-4" />

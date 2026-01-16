@@ -2,9 +2,10 @@ import type { Message } from '@/types';
 
 interface MessageBubbleProps {
   message: Message;
+  fontSize?: number;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, fontSize = 14 }: MessageBubbleProps) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end mb-6">
@@ -35,7 +36,12 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         </svg>
       </div>
       <div className="flex-1 pt-1">
-        <p className="text-sm text-zinc-800 whitespace-pre-wrap leading-relaxed">{message.content}</p>
+        <p 
+          className="text-zinc-800 whitespace-pre-wrap leading-relaxed"
+          style={{ fontSize: `${fontSize}px` }}
+        >
+          {message.content}
+        </p>
       </div>
     </div>
   );

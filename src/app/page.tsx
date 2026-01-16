@@ -4,20 +4,33 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from '@/components/sidebar';
 import { ChatArea } from '@/components/chat-area';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { SettingsDialog, SPEED_DELAYS, type Settings } from '@/components/settings-dialog';
+import { SettingsDialog, DEFAULT_SETTINGS, type Settings } from '@/components/settings-dialog';
 import { parseBook, getNextParagraphs, advanceProgress, goToNextChapter, goToChapter } from '@/lib/book-parser';
 import { saveBook, loadBook, saveMessages, loadMessages, clearBook, hasExistingBook } from '@/lib/storage';
 import { getDefaultBook } from '@/lib/default-book';
 import type { Book, Message } from '@/types';
 
-const DEFAULT_SETTINGS: Settings = {
-  paragraphsPerMessage: 3,
-  speed: 'medium',
-};
-
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
+
+const FAKE_PROMPTS = [
+  '帮我分析一下这个需求文档，看看有没有遗漏的点',
+  '这段代码的性能好像不太行，能帮我优化一下吗',
+  '我不太理解这个设计模式，能详细解释一下吗',
+  '继续说，我在听',
+  '然后呢，后面发生了什么',
+  '这个方案感觉有点复杂，有没有更简单的实现方式',
+  '你觉得这个技术选型合理吗，有什么建议',
+  '帮我写一个单元测试用例',
+  '这个 bug 怎么复现的，能分析一下原因吗',
+  '帮我 review 一下这段代码，看看有没有潜在问题',
+  '这个接口的返回值格式对吗',
+  '帮我把这个逻辑重构一下，现在太乱了',
+  '你确定这样写没问题吗，我有点担心',
+  '能不能举个具体的例子说明一下',
+  '这个报错信息是什么意思',
+];
 
 export default function Home() {
   const [book, setBook] = useState<Book | null>(null);
@@ -31,6 +44,7 @@ export default function Home() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const pendingFileRef = useRef<File | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const streamingRef = useRef<{ intervalId: NodeJS.Timeout; messageId: string; fullText: string; onComplete: () => void } | null>(null);
 
   // 加载保存的数据或使用默认书籍
   useEffect(() => {
@@ -106,7 +120,6 @@ export default function Home() {
   const streamText = useCallback((text: string, onComplete: () => void) => {
     const messageId = generateId();
     let currentIndex = 0;
-    const delay = SPEED_DELAYS[settings.speed];
     
     setMessages(prev => [...prev, { id: messageId, role: 'assistant', content: '' }]);
 
@@ -118,15 +131,30 @@ export default function Home() {
       );
       if (currentIndex >= text.length) {
         clearInterval(interval);
+        streamingRef.current = null;
         onComplete();
       }
-    }, delay);
-  }, [settings.speed]);
+    }, settings.typingSpeed);
+
+    streamingRef.current = { intervalId: interval, messageId, fullText: text, onComplete };
+  }, [settings.typingSpeed]);
+
+  const skipStreaming = useCallback(() => {
+    if (!streamingRef.current) return;
+    const { intervalId, messageId, fullText, onComplete } = streamingRef.current;
+    clearInterval(intervalId);
+    setMessages(prev =>
+      prev.map(msg => msg.id === messageId ? { ...msg, content: fullText } : msg)
+    );
+    streamingRef.current = null;
+    onComplete();
+  }, []);
 
   const handleSendMessage = useCallback((content: string) => {
     if (!book || isStreaming) return;
 
-    setMessages(prev => [...prev, { id: generateId(), role: 'user', content }]);
+    const displayContent = content || FAKE_PROMPTS[Math.floor(Math.random() * FAKE_PROMPTS.length)];
+    setMessages(prev => [...prev, { id: generateId(), role: 'user', content: displayContent }]);
     const { paragraphs, isChapterEnd } = getNextParagraphs(book, settings.paragraphsPerMessage);
     
     if (paragraphs.length === 0) {
@@ -223,7 +251,9 @@ export default function Home() {
         messages={messages}
         book={book}
         isStreaming={isStreaming}
+        fontSize={settings.fontSize}
         onSendMessage={handleSendMessage}
+        onSkipStreaming={skipStreaming}
         onOpenSettings={() => setSettingsOpen(true)}
       />
       
