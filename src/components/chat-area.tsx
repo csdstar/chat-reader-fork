@@ -31,7 +31,7 @@ export const ChatArea = forwardRef<HTMLTextAreaElement, ChatAreaProps>(
         {/* 顶部标题栏 */}
         <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-100">
           <div />
-          <span className="text-sm font-medium text-zinc-800">ChatGPT 4o</span>
+          <span className="text-sm font-medium text-zinc-800">ChatGPT 5.2</span>
           <div className="flex items-center gap-1">
             <a
               href="https://github.com/liuzhao1225/chat-reader"
