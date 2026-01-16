@@ -2,7 +2,7 @@
 
 > 一个伪装成 ChatGPT 的小说阅读器，让你在办公室"认真工作"的同时享受阅读的乐趣。
 
-**🌐 在线体验：[https://chat-reader-eta.vercel.app](https://chat-reader-eta.vercel.app)**
+**🌐 在线体验：[chat-reader.小可.爱](https://chat-reader.xiaoke.ai/)**
 
 ![Demo](./demo.gif)
 
