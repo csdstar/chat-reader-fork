@@ -134,7 +134,7 @@ export default function Home() {
         streamingRef.current = null;
         onComplete();
       }
-    }, settings.typingSpeed);
+    }, Math.round(1000 / settings.typingSpeed));
 
     streamingRef.current = { intervalId: interval, messageId, fullText: text, onComplete };
   }, [settings.typingSpeed]);
@@ -204,12 +204,6 @@ export default function Home() {
     focusInput();
   }, [book, isStreaming, focusInput]);
 
-  const handleNewChat = useCallback(() => {
-    if (!book) return;
-    setMessages([]);
-    focusInput();
-  }, [book, focusInput]);
-
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -243,7 +237,7 @@ export default function Home() {
         collapsed={sidebarCollapsed}
         onCollapsedChange={setSidebarCollapsed}
         onChapterSelect={handleChapterSelect}
-        onNewChat={handleNewChat}
+        onFileSelect={handleFileDrop}
       />
       
       <ChatArea

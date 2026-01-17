@@ -13,14 +13,14 @@ import { RotateCcw, X } from 'lucide-react';
 
 export interface Settings {
   paragraphsPerMessage: number;
-  typingSpeed: number; // ms per character (10-100)
+  typingSpeed: number; // characters per second (5-50)
   fontSize: number; // px (12-24)
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   paragraphsPerMessage: 3,
-  typingSpeed: 30,
-  fontSize: 14,
+  typingSpeed: 30, // 30 字/秒
+  fontSize: 16,
 };
 
 interface SettingsDialogProps {
@@ -44,12 +44,12 @@ export function SettingsDialog({ open, onOpenChange, settings, onSettingsChange 
   };
 
   const handleSpeedChange = (value: number) => {
-    const clamped = Math.max(10, Math.min(100, value || 30));
+    const clamped = Math.max(5, Math.min(50, value || 30));
     setLocalSettings(prev => ({ ...prev, typingSpeed: clamped }));
   };
 
   const handleFontSizeChange = (value: number) => {
-    const clamped = Math.max(12, Math.min(24, value || 14));
+    const clamped = Math.max(12, Math.min(24, value || 16));
     setLocalSettings(prev => ({ ...prev, fontSize: clamped }));
   };
 
@@ -108,19 +108,19 @@ export function SettingsDialog({ open, onOpenChange, settings, onSettingsChange 
           {/* 打字速度 */}
           <div>
             <label className="text-sm font-medium text-zinc-700 mb-3 block">
-              打字速度 <span className="text-zinc-400 font-normal">（{localSettings.typingSpeed}ms/字）</span>
+              打字速度 <span className="text-zinc-400 font-normal">（{localSettings.typingSpeed} 字/秒）</span>
             </label>
             <div className="flex items-center gap-4">
-              <span className="text-xs text-zinc-400">快</span>
+              <span className="text-xs text-zinc-400">慢</span>
               <input
                 type="range"
-                min="10"
-                max="100"
+                min="5"
+                max="50"
                 value={localSettings.typingSpeed}
                 onChange={(e) => handleSpeedChange(Number(e.target.value))}
                 className="flex-1 h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-zinc-900"
               />
-              <span className="text-xs text-zinc-400">慢</span>
+              <span className="text-xs text-zinc-400">快</span>
             </div>
           </div>
 

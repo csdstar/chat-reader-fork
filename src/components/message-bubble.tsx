@@ -5,12 +5,17 @@ interface MessageBubbleProps {
   fontSize?: number;
 }
 
-export function MessageBubble({ message, fontSize = 14 }: MessageBubbleProps) {
+export function MessageBubble({ message, fontSize = 16 }: MessageBubbleProps) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end mb-6">
         <div className="max-w-[70%] rounded-3xl bg-zinc-100 px-5 py-3">
-          <p className="text-sm text-zinc-800 whitespace-pre-wrap">{message.content}</p>
+          <p 
+            className="text-zinc-800 whitespace-pre-wrap"
+            style={{ fontSize: `${fontSize}px` }}
+          >
+            {message.content}
+          </p>
         </div>
       </div>
     );
