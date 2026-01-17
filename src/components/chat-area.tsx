@@ -1,10 +1,10 @@
 'use client';
 
-import { useRef, useEffect, forwardRef } from 'react';
+import { useRef, useEffect, useState, forwardRef, useCallback } from 'react';
 import { MessageBubble } from './message-bubble';
 import { ChatInput } from './chat-input';
 import type { Message, Book } from '@/types';
-import { Settings, Github } from 'lucide-react';
+import { Settings, Github, ArrowDown } from 'lucide-react';
 
 interface ChatAreaProps {
   messages: Message[];
@@ -19,12 +19,26 @@ interface ChatAreaProps {
 export const ChatArea = forwardRef<HTMLTextAreaElement, ChatAreaProps>(
   function ChatArea({ messages, book, isStreaming, fontSize, onSendMessage, onSkipStreaming, onOpenSettings }, inputRef) {
     const scrollRef = useRef<HTMLDivElement>(null);
+    const [autoScroll, setAutoScroll] = useState(true);
+
+    const scrollToBottom = useCallback(() => {
+      if (!scrollRef.current) return;
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+      // autoScroll 会在滚动到底部后由 handleScroll 自动恢复
+    }, []);
+
+    const handleScroll = useCallback(() => {
+      if (!scrollRef.current) return;
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+      setAutoScroll(isAtBottom);
+    }, []);
 
     useEffect(() => {
-      if (scrollRef.current) {
+      if (autoScroll && scrollRef.current) {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
       }
-    }, [messages]);
+    }, [messages, autoScroll]);
 
     return (
       <div className="flex flex-1 flex-col bg-white min-w-0">
@@ -53,7 +67,7 @@ export const ChatArea = forwardRef<HTMLTextAreaElement, ChatAreaProps>(
         </div>
 
         {/* 聊天内容 - 可滚动，滚动条始终占位 */}
-        <div ref={scrollRef} className="flex-1 overflow-y-scroll">
+        <div ref={scrollRef} onScroll={handleScroll} className="relative flex-1 overflow-y-scroll">
           <div className="max-w-3xl mx-auto px-4 py-4">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -67,6 +81,17 @@ export const ChatArea = forwardRef<HTMLTextAreaElement, ChatAreaProps>(
               ))}
             </div>
           </div>
+          
+          {/* 滚动到底部按钮 */}
+          {!autoScroll && (
+            <button
+              onClick={scrollToBottom}
+              className="sticky bottom-4 left-1/2 -translate-x-1/2 mx-auto flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 shadow-md border border-zinc-200 hover:bg-zinc-200 transition-colors"
+              title="滚动到底部"
+            >
+              <ArrowDown className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {/* 输入框 */}
