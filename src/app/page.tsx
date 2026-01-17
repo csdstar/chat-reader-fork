@@ -227,7 +227,7 @@ export default function Home() {
 
   return (
     <div 
-      className="flex h-screen bg-white relative"
+      className="flex h-full bg-white relative"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}

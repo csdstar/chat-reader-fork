@@ -54,22 +54,24 @@ export const ChatArea = forwardRef<HTMLTextAreaElement, ChatAreaProps>(
 
         {/* 聊天内容 - 可滚动，滚动条始终占位 */}
         <div ref={scrollRef} className="flex-1 overflow-y-scroll">
-          <div className="max-w-3xl mx-auto px-4 py-6">
+          <div className="max-w-3xl mx-auto px-4 py-4">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center min-h-[60vh]">
                 <h1 className="text-2xl font-medium text-zinc-800 mb-8">有什么可以帮忙的?</h1>
               </div>
             )}
             
-            {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} fontSize={fontSize} />
-            ))}
+            <div className="space-y-6">
+              {messages.map((msg) => (
+                <MessageBubble key={msg.id} message={msg} fontSize={fontSize} />
+              ))}
+            </div>
           </div>
         </div>
 
         {/* 输入框 */}
         <div className="flex-shrink-0 bg-white">
-          <div className="max-w-3xl mx-auto px-4 py-4">
+          <div className="max-w-3xl mx-auto px-4 py-2">
             <ChatInput
               ref={inputRef}
               onSend={onSendMessage}
@@ -78,9 +80,6 @@ export const ChatArea = forwardRef<HTMLTextAreaElement, ChatAreaProps>(
               isStreaming={isStreaming}
               onSkipStreaming={onSkipStreaming}
             />
-            <p className="text-xs text-center text-zinc-400 mt-2">
-              ChatGPT 也可能会犯错。请核查重要信息。
-            </p>
           </div>
         </div>
       </div>
