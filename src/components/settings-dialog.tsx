@@ -13,13 +13,13 @@ import { RotateCcw, X } from 'lucide-react';
 
 export interface Settings {
   paragraphsPerMessage: number;
-  typingSpeed: number; // characters per second (5-50)
+  typingSpeed: number; // characters per second (5-100)
   fontSize: number; // px (12-24)
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  paragraphsPerMessage: 3,
-  typingSpeed: 30, // 30 字/秒
+  paragraphsPerMessage: 5,
+  typingSpeed: 50, // 50 字/秒
   fontSize: 16,
 };
 
@@ -44,7 +44,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onSettingsChange 
   };
 
   const handleSpeedChange = (value: number) => {
-    const clamped = Math.max(5, Math.min(50, value || 30));
+    const clamped = Math.max(5, Math.min(100, value || 50));
     setLocalSettings(prev => ({ ...prev, typingSpeed: clamped }));
   };
 
@@ -115,7 +115,7 @@ export function SettingsDialog({ open, onOpenChange, settings, onSettingsChange 
               <input
                 type="range"
                 min="5"
-                max="50"
+                max="100"
                 value={localSettings.typingSpeed}
                 onChange={(e) => handleSpeedChange(Number(e.target.value))}
                 className="flex-1 h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-zinc-900"
