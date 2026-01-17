@@ -37,17 +37,17 @@ export const ChatArea = forwardRef<HTMLTextAreaElement, ChatAreaProps>(
               href="https://github.com/liuzhao1225/chat-reader"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 transition-colors"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 active:bg-zinc-200 transition-colors"
               title="GitHub"
             >
-              <Github className="h-4 w-4" />
+              <Github className="h-5 w-5" />
             </a>
             <button
               onClick={onOpenSettings}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 transition-colors"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 active:bg-zinc-200 transition-colors"
               title="设置"
             >
-              <Settings className="h-4 w-4" />
+              <Settings className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -64,29 +64,19 @@ export const ChatArea = forwardRef<HTMLTextAreaElement, ChatAreaProps>(
             {messages.map((msg) => (
               <MessageBubble key={msg.id} message={msg} fontSize={fontSize} />
             ))}
-            
-            {isStreaming && (
-              <div className="flex gap-4 mb-6">
-                <div className="w-8" />
-                <button
-                  onClick={onSkipStreaming}
-                  className="px-4 py-1.5 text-sm text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-full transition-colors"
-                >
-                  立即回答
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
         {/* 输入框 */}
-        <div className="flex-shrink-0 border-t border-zinc-100 bg-white">
+        <div className="flex-shrink-0 bg-white">
           <div className="max-w-3xl mx-auto px-4 py-4">
             <ChatInput
               ref={inputRef}
               onSend={onSendMessage}
-              disabled={isStreaming || !book}
+              disabled={!book}
               placeholder={isStreaming ? '' : '有问题，尽管问'}
+              isStreaming={isStreaming}
+              onSkipStreaming={onSkipStreaming}
             />
             <p className="text-xs text-center text-zinc-400 mt-2">
               ChatGPT 也可能会犯错。请核查重要信息。
