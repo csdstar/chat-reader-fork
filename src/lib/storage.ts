@@ -1,7 +1,7 @@
 import type { Book, Message } from '@/types';
 
 const DB_NAME = 'chat-reader-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const BOOK_STORE = 'book';
 const MESSAGES_STORE = 'messages';
 
@@ -19,6 +19,11 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(MESSAGES_STORE)) {
         db.createObjectStore(MESSAGES_STORE);
+      }
+      if (event.oldVersion < 2) {
+        const tx = (event.target as IDBOpenDBRequest).transaction;
+        tx?.objectStore(BOOK_STORE).clear();
+        tx?.objectStore(MESSAGES_STORE).clear();
       }
     };
   });

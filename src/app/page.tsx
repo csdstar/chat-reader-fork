@@ -6,6 +6,7 @@ import { ChatArea } from '@/components/chat-area';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { SettingsDialog, DEFAULT_SETTINGS, type Settings } from '@/components/settings-dialog';
 import { parseBook, getNextParagraphs, advanceProgress, goToNextChapter, goToChapter } from '@/lib/book-parser';
+import { parseEpub } from '@/lib/epub-parser';
 import { saveBook, loadBook, saveMessages, loadMessages, clearBook, hasExistingBook } from '@/lib/storage';
 import { getDefaultBook } from '@/lib/default-book';
 import type { Book, Message } from '@/types';
@@ -37,9 +38,10 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // 默认收起，移动端友好
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isCustomBook, setIsCustomBook] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const pendingFileRef = useRef<File | null>(null);
@@ -81,17 +83,34 @@ export default function Home() {
   }, []);
 
   const processFile = useCallback(async (file: File) => {
-    const buffer = await file.arrayBuffer();
-    let content = new TextDecoder('utf-8').decode(buffer);
-    if (content.includes('\uFFFD')) {
-      content = new TextDecoder('gbk').decode(buffer);
+    setIsProcessingFile(true);
+    setMessages([{ id: generateId(), role: 'system', content: `正在解析《${file.name}》...` }]);
+
+    try {
+      const buffer = await file.arrayBuffer();
+      let newBook: Book;
+
+      if (file.name.toLowerCase().endsWith('.epub')) {
+        newBook = await parseEpub(buffer, file.name);
+      } else {
+        let content = new TextDecoder('utf-8').decode(buffer);
+        if (content.includes('\uFFFD')) {
+          content = new TextDecoder('gbk').decode(buffer);
+        }
+        newBook = parseBook(content, file.name);
+      }
+
+      await clearBook();
+      setBook(newBook);
+      setIsCustomBook(true);
+      setMessages([]);
+      focusInput();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '未知错误';
+      setMessages([{ id: generateId(), role: 'system', content: `解析《${file.name}》失败：${message}` }]);
+    } finally {
+      setIsProcessingFile(false);
     }
-    const newBook = parseBook(content, file.name);
-    await clearBook();
-    setBook(newBook);
-    setIsCustomBook(true);
-    setMessages([]);
-    focusInput();
   }, [focusInput]);
 
   const handleFileDrop = useCallback(async (file: File) => {
@@ -151,7 +170,7 @@ export default function Home() {
   }, []);
 
   const handleSendMessage = useCallback((content: string) => {
-    if (!book || isStreaming) return;
+    if (!book || isStreaming || isProcessingFile) return;
 
     const displayContent = content || FAKE_PROMPTS[Math.floor(Math.random() * FAKE_PROMPTS.length)];
     setMessages(prev => [...prev, { id: generateId(), role: 'user', content: displayContent }]);
@@ -195,7 +214,7 @@ export default function Home() {
         }, 500);
       }
     });
-  }, [book, isStreaming, streamText, isCustomBook, settings.paragraphsPerMessage, focusInput]);
+  }, [book, isStreaming, isProcessingFile, streamText, isCustomBook, settings.paragraphsPerMessage, focusInput]);
 
   const handleChapterSelect = useCallback((index: number) => {
     if (!book || isStreaming) return;
@@ -220,7 +239,7 @@ export default function Home() {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file && file.name.endsWith('.txt')) {
+    if (file && /\.(txt|epub)$/i.test(file.name)) {
       handleFileDrop(file);
     }
   }, [handleFileDrop]);

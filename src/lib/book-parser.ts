@@ -1,9 +1,37 @@
 import type { Book, Chapter } from '@/types';
 
-const CHAPTER_REGEX = /^(第[一二三四五六七八九十百千万零〇0-9]+[章节回卷部集篇]|Chapter\s*\d+|CHAPTER\s*\d+|卷[一二三四五六七八九十百千万零〇0-9]+).*/;
+const WRAPPER_CHARS_REGEX = /^[\s"'“”‘’「」『』《》【】\[\]()（）]+|[\s"'“”‘’」』》】\])）]+$/g;
+const CJK_NUMBER = '一二三四五六七八九十百千万零〇两俩0-9';
+const STANDARD_CHAPTER_REGEX = new RegExp(
+  `^(第\\s*[${CJK_NUMBER}]+\\s*[章节回卷部集篇话]|卷\\s*[${CJK_NUMBER}]+|chapter\\s*\\d+|chap\\.?\\s*\\d+)`,
+  'i'
+);
+const NUMBERED_CHAPTER_REGEX = /^(\d{1,5}|[一二三四五六七八九十百千万零〇两俩]{1,8})\s*([.．、:：]|[)\]）】])\s*(?!\d)\S.{0,100}$/;
+const NUMBER_SPACE_CHAPTER_REGEX = /^\d{1,5}\s+\S.{0,80}$/;
+
+function normalizeChapterCandidate(line: string) {
+  return line.trim().replace(WRAPPER_CHARS_REGEX, '').trim();
+}
+
+export function isChapterTitle(line: string) {
+  const normalized = normalizeChapterCandidate(line);
+  if (!normalized || normalized.length > 120) return false;
+  return (
+    STANDARD_CHAPTER_REGEX.test(normalized) ||
+    NUMBERED_CHAPTER_REGEX.test(normalized) ||
+    NUMBER_SPACE_CHAPTER_REGEX.test(normalized)
+  );
+}
+
+function addChapter(chapters: Chapter[], title: string, paragraphs: string[]) {
+  const cleanedParagraphs = paragraphs.filter(p => p.length > 0);
+  if (cleanedParagraphs.length > 0) {
+    chapters.push({ title, paragraphs: cleanedParagraphs });
+  }
+}
 
 export function parseBook(content: string, filename: string): Book {
-  const lines = content.split(/\r?\n/);
+  const lines = content.split(/\r\n|\n|\r/);
   const chapters: Chapter[] = [];
   let currentChapter: Chapter | null = null;
   let currentParagraphs: string[] = [];
@@ -11,13 +39,12 @@ export function parseBook(content: string, filename: string): Book {
   for (const line of lines) {
     const trimmed = line.trim();
     
-    if (CHAPTER_REGEX.test(trimmed)) {
+    if (isChapterTitle(trimmed)) {
       // 保存上一章
       if (currentChapter) {
-        currentChapter.paragraphs = currentParagraphs.filter(p => p.length > 0);
-        if (currentChapter.paragraphs.length > 0) {
-          chapters.push(currentChapter);
-        }
+        addChapter(chapters, currentChapter.title, currentParagraphs);
+      } else {
+        addChapter(chapters, '序章', currentParagraphs);
       }
       // 开始新章节
       currentChapter = { title: trimmed, paragraphs: [] };
@@ -32,10 +59,7 @@ export function parseBook(content: string, filename: string): Book {
 
   // 保存最后一章
   if (currentChapter) {
-    currentChapter.paragraphs = currentParagraphs.filter(p => p.length > 0);
-    if (currentChapter.paragraphs.length > 0) {
-      chapters.push(currentChapter);
-    }
+    addChapter(chapters, currentChapter.title, currentParagraphs);
   }
 
   // 如果没有检测到章节，将整个内容作为一章
@@ -44,7 +68,7 @@ export function parseBook(content: string, filename: string): Book {
     chapters.push({ title: '全文', paragraphs });
   }
 
-  const title = filename.replace(/\.txt$/i, '');
+  const title = filename.replace(/\.(txt|epub)$/i, '');
 
   return {
     title,

@@ -13,8 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Chat Reader",
+  title: "ChatGPT",
   description: "AI 时代的摸鱼神器 - 伪装成 ChatGPT 的小说阅读器",
+  icons: {
+    icon: "/icons/chatgpt.svg",
+    shortcut: "/icons/chatgpt.svg",
+  },
 };
 
 export default function RootLayout({
