@@ -51,5 +51,6 @@ export function getDefaultBook(): Book {
     }],
     currentChapterIndex: 0,
     currentParagraphIndex: 0,
+    format: 'builtin',
   };
 }

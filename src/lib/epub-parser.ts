@@ -104,6 +104,7 @@ export async function parseEpub(buffer: ArrayBuffer, filename: string): Promise<
       chapters,
       currentChapterIndex: 0,
       currentParagraphIndex: 0,
+      format: 'epub',
     };
   } finally {
     epubBook.destroy();

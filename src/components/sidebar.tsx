@@ -76,9 +76,17 @@ interface SidebarProps {
   onCollapsedChange: (collapsed: boolean) => void;
   onChapterSelect: (index: number) => void;
   onFileSelect: (file: File) => void;
+  onOpenChapterSettings: () => void;
 }
 
-export function Sidebar({ book, collapsed, onCollapsedChange, onChapterSelect, onFileSelect }: SidebarProps) {
+export function Sidebar({
+  book,
+  collapsed,
+  onCollapsedChange,
+  onChapterSelect,
+  onFileSelect,
+  onOpenChapterSettings,
+}: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,15 +190,25 @@ export function Sidebar({ book, collapsed, onCollapsedChange, onChapterSelect, o
           </button>
 
           <nav className="mt-1 space-y-0.5">
-            {NAV_ITEMS.map((item) => (
-              <div
-                key={item.label}
-                className="flex h-11 items-center gap-2.5 rounded-lg px-4 text-[15px] font-normal text-[#0f0f0f] transition-colors hover:bg-[#f1f1f1]"
-              >
-                <SidebarIcon src={item.icon} alt="" className="h-5 w-5" />
-                <span>{item.label}</span>
-              </div>
-            ))}
+            {NAV_ITEMS.map((item) => {
+              const content = (
+                <>
+                  <SidebarIcon src={item.icon} alt="" className="h-5 w-5" />
+                  <span>{item.label}</span>
+                </>
+              );
+              const className = 'flex h-11 w-full items-center gap-2.5 rounded-lg px-4 text-[15px] font-normal text-[#0f0f0f] transition-colors hover:bg-[#f1f1f1]';
+
+              return item.label === '应用' ? (
+                <button key={item.label} type="button" onClick={onOpenChapterSettings} className={className}>
+                  {content}
+                </button>
+              ) : (
+                <div key={item.label} className={className}>
+                  {content}
+                </div>
+              );
+            })}
           </nav>
 
           {book && (

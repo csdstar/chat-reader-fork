@@ -3,11 +3,26 @@ export interface Chapter {
   paragraphs: string[];
 }
 
+export type ChapterPattern =
+  | 'chinese-standard'
+  | 'volume'
+  | 'english'
+  | 'numbered-punctuation'
+  | 'numbered-space';
+
+export interface BookSource {
+  type: 'txt';
+  filename: string;
+  content: string;
+}
+
 export interface Book {
   title: string;
   chapters: Chapter[];
   currentChapterIndex: number;
   currentParagraphIndex: number;
+  format?: 'txt' | 'epub' | 'builtin';
+  chapterPatterns?: ChapterPattern[];
 }
 
 export interface Message {

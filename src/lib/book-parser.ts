@@ -1,26 +1,44 @@
-import type { Book, Chapter } from '@/types';
+import type { Book, Chapter, ChapterPattern } from '@/types';
 
 const WRAPPER_CHARS_REGEX = /^[\s"'“”‘’「」『』《》【】\[\]()（）]+|[\s"'“”‘’」』》】\])）]+$/g;
 const CJK_NUMBER = '一二三四五六七八九十百千万零〇两俩0-9';
-const STANDARD_CHAPTER_REGEX = new RegExp(
-  `^(第\\s*[${CJK_NUMBER}]+\\s*[章节回卷部集篇话]|卷\\s*[${CJK_NUMBER}]+|chapter\\s*\\d+|chap\\.?\\s*\\d+)`,
+const TITLE_BOUNDARY = '(?:\\s+|[：:（(【\\[—-]|$)';
+const CHINESE_CHAPTER_REGEX = new RegExp(
+  `^第\\s*[${CJK_NUMBER}]+\\s*[章节回部集篇话]${TITLE_BOUNDARY}`,
   'i'
 );
+const VOLUME_CHAPTER_REGEX = new RegExp(
+  `^(?:第\\s*[${CJK_NUMBER}]+\\s*卷|卷\\s*[${CJK_NUMBER}]+)${TITLE_BOUNDARY}`,
+  'i'
+);
+const ENGLISH_CHAPTER_REGEX = new RegExp(`^(?:chapter|chap\\.?)\\s*\\d+${TITLE_BOUNDARY}`, 'i');
 const NUMBERED_CHAPTER_REGEX = /^(\d{1,5}|[一二三四五六七八九十百千万零〇两俩]{1,8})\s*([.．、:：]|[)\]）】])\s*(?!\d)\S.{0,100}$/;
 const NUMBER_SPACE_CHAPTER_REGEX = /^\d{1,5}\s+\S.{0,80}$/;
+
+export const DEFAULT_CHAPTER_PATTERNS: ChapterPattern[] = [
+  'chinese-standard',
+  'volume',
+  'english',
+  'numbered-punctuation',
+  'numbered-space',
+];
+
+const CHAPTER_PATTERN_TESTS: Record<ChapterPattern, RegExp> = {
+  'chinese-standard': CHINESE_CHAPTER_REGEX,
+  volume: VOLUME_CHAPTER_REGEX,
+  english: ENGLISH_CHAPTER_REGEX,
+  'numbered-punctuation': NUMBERED_CHAPTER_REGEX,
+  'numbered-space': NUMBER_SPACE_CHAPTER_REGEX,
+};
 
 function normalizeChapterCandidate(line: string) {
   return line.trim().replace(WRAPPER_CHARS_REGEX, '').trim();
 }
 
-export function isChapterTitle(line: string) {
+export function isChapterTitle(line: string, patterns: ChapterPattern[] = DEFAULT_CHAPTER_PATTERNS) {
   const normalized = normalizeChapterCandidate(line);
   if (!normalized || normalized.length > 120) return false;
-  return (
-    STANDARD_CHAPTER_REGEX.test(normalized) ||
-    NUMBERED_CHAPTER_REGEX.test(normalized) ||
-    NUMBER_SPACE_CHAPTER_REGEX.test(normalized)
-  );
+  return patterns.some(pattern => CHAPTER_PATTERN_TESTS[pattern].test(normalized));
 }
 
 function addChapter(chapters: Chapter[], title: string, paragraphs: string[]) {
@@ -30,7 +48,11 @@ function addChapter(chapters: Chapter[], title: string, paragraphs: string[]) {
   }
 }
 
-export function parseBook(content: string, filename: string): Book {
+export function parseBook(
+  content: string,
+  filename: string,
+  chapterPatterns: ChapterPattern[] = DEFAULT_CHAPTER_PATTERNS
+): Book {
   const lines = content.split(/\r\n|\n|\r/);
   const chapters: Chapter[] = [];
   let currentChapter: Chapter | null = null;
@@ -39,7 +61,7 @@ export function parseBook(content: string, filename: string): Book {
   for (const line of lines) {
     const trimmed = line.trim();
     
-    if (isChapterTitle(trimmed)) {
+    if (isChapterTitle(trimmed, chapterPatterns)) {
       // 保存上一章
       if (currentChapter) {
         addChapter(chapters, currentChapter.title, currentParagraphs);
@@ -75,6 +97,8 @@ export function parseBook(content: string, filename: string): Book {
     chapters,
     currentChapterIndex: 0,
     currentParagraphIndex: 0,
+    format: 'txt',
+    chapterPatterns,
   };
 }
 

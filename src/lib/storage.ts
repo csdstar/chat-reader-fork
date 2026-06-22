@@ -1,9 +1,10 @@
-import type { Book, Message } from '@/types';
+import type { Book, BookSource, Message } from '@/types';
 
 const DB_NAME = 'chat-reader-db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const BOOK_STORE = 'book';
 const MESSAGES_STORE = 'messages';
+const SOURCE_STORE = 'source';
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -19,6 +20,9 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(MESSAGES_STORE)) {
         db.createObjectStore(MESSAGES_STORE);
+      }
+      if (!db.objectStoreNames.contains(SOURCE_STORE)) {
+        db.createObjectStore(SOURCE_STORE);
       }
       if (event.oldVersion < 2) {
         const tx = (event.target as IDBOpenDBRequest).transaction;
@@ -52,11 +56,32 @@ export async function loadBook(): Promise<Book | null> {
 export async function clearBook(): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction([BOOK_STORE, MESSAGES_STORE], 'readwrite');
+    const tx = db.transaction([BOOK_STORE, MESSAGES_STORE, SOURCE_STORE], 'readwrite');
     tx.objectStore(BOOK_STORE).clear();
     tx.objectStore(MESSAGES_STORE).clear();
+    tx.objectStore(SOURCE_STORE).clear();
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function saveBookSource(source: BookSource): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SOURCE_STORE, 'readwrite');
+    tx.objectStore(SOURCE_STORE).put(source, 'current');
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function loadBookSource(): Promise<BookSource | null> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SOURCE_STORE, 'readonly');
+    const request = tx.objectStore(SOURCE_STORE).get('current');
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
   });
 }
 

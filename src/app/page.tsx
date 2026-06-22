@@ -4,15 +4,29 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from '@/components/sidebar';
 import { ChatArea } from '@/components/chat-area';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { ChapterSettingsDialog } from '@/components/chapter-settings-dialog';
 import { SettingsDialog, DEFAULT_SETTINGS, type Settings } from '@/components/settings-dialog';
-import { parseBook, getNextParagraphs, advanceProgress, goToNextChapter, goToChapter } from '@/lib/book-parser';
+import { DEFAULT_CHAPTER_PATTERNS, parseBook, getNextParagraphs, advanceProgress, goToNextChapter, goToChapter } from '@/lib/book-parser';
 import { parseEpub } from '@/lib/epub-parser';
-import { saveBook, loadBook, saveMessages, loadMessages, clearBook, hasExistingBook } from '@/lib/storage';
+import { saveBook, loadBook, saveMessages, loadMessages, saveBookSource, loadBookSource, clearBook, hasExistingBook } from '@/lib/storage';
 import { getDefaultBook } from '@/lib/default-book';
-import type { Book, Message } from '@/types';
+import type { Book, BookSource, ChapterPattern, Message } from '@/types';
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function rebuildBookSource(book: Book): BookSource {
+  const lines = book.chapters.flatMap((chapter, index) => {
+    const isSyntheticTitle = chapter.title === '全文' || (index === 0 && chapter.title === '序章');
+    return [isSyntheticTitle ? '' : chapter.title, ...chapter.paragraphs].filter(Boolean);
+  });
+
+  return {
+    type: 'txt',
+    filename: `${book.title}.txt`,
+    content: lines.join('\n\n'),
+  };
 }
 
 const FAKE_PROMPTS = [
@@ -35,15 +49,18 @@ const FAKE_PROMPTS = [
 
 export default function Home() {
   const [book, setBook] = useState<Book | null>(null);
+  const [bookSource, setBookSource] = useState<BookSource | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [chapterSettingsOpen, setChapterSettingsOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isCustomBook, setIsCustomBook] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [chapterPatterns, setChapterPatterns] = useState<ChapterPattern[]>(DEFAULT_CHAPTER_PATTERNS);
   const pendingFileRef = useRef<File | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const streamingRef = useRef<{ intervalId: NodeJS.Timeout; messageId: string; fullText: string; onComplete: () => void } | null>(null);
@@ -51,11 +68,16 @@ export default function Home() {
   // 加载保存的数据或使用默认书籍
   useEffect(() => {
     (async () => {
-      const savedBook = await loadBook();
-      const savedMessages = await loadMessages();
+      const [savedBook, savedMessages, savedSource] = await Promise.all([
+        loadBook(),
+        loadMessages(),
+        loadBookSource(),
+      ]);
       if (savedBook) {
         setBook(savedBook);
+        setBookSource(savedSource);
         setIsCustomBook(true);
+        setChapterPatterns(savedBook.chapterPatterns || DEFAULT_CHAPTER_PATTERNS);
       } else {
         setBook(getDefaultBook());
         setIsCustomBook(false);
@@ -89,6 +111,7 @@ export default function Home() {
     try {
       const buffer = await file.arrayBuffer();
       let newBook: Book;
+      let newSource: BookSource | null = null;
 
       if (file.name.toLowerCase().endsWith('.epub')) {
         newBook = await parseEpub(buffer, file.name);
@@ -97,11 +120,14 @@ export default function Home() {
         if (content.includes('\uFFFD')) {
           content = new TextDecoder('gbk').decode(buffer);
         }
-        newBook = parseBook(content, file.name);
+        newBook = parseBook(content, file.name, chapterPatterns);
+        newSource = { type: 'txt', filename: file.name, content };
       }
 
       await clearBook();
+      if (newSource) await saveBookSource(newSource);
       setBook(newBook);
+      setBookSource(newSource);
       setIsCustomBook(true);
       setMessages([]);
       focusInput();
@@ -111,7 +137,42 @@ export default function Home() {
     } finally {
       setIsProcessingFile(false);
     }
-  }, [focusInput]);
+  }, [chapterPatterns, focusInput]);
+
+  const handleChapterPatternsApply = useCallback(async (patterns: ChapterPattern[]) => {
+    const nextPatterns = [...patterns];
+    setChapterPatterns(nextPatterns);
+
+    const canReparse = !!book && isCustomBook && book.format !== 'epub' && book.format !== 'builtin';
+    if (!canReparse) {
+      setChapterSettingsOpen(false);
+      return;
+    }
+
+    setIsProcessingFile(true);
+    try {
+      const source = bookSource || rebuildBookSource(book);
+      const reparsedBook = parseBook(source.content, source.filename, nextPatterns);
+
+      await Promise.all([
+        saveBookSource(source),
+        saveBook(reparsedBook),
+        saveMessages([]),
+      ]);
+
+      setBookSource(source);
+      setBook(reparsedBook);
+      setMessages([]);
+      setIsCustomBook(true);
+      setChapterSettingsOpen(false);
+      focusInput();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '未知错误';
+      setMessages([{ id: generateId(), role: 'system', content: `重新划分章节失败：${message}` }]);
+    } finally {
+      setIsProcessingFile(false);
+    }
+  }, [book, bookSource, focusInput, isCustomBook]);
 
   const handleFileDrop = useCallback(async (file: File) => {
     const exists = await hasExistingBook();
@@ -257,6 +318,7 @@ export default function Home() {
         onCollapsedChange={setSidebarCollapsed}
         onChapterSelect={handleChapterSelect}
         onFileSelect={handleFileDrop}
+        onOpenChapterSettings={() => setChapterSettingsOpen(true)}
       />
       
       <ChatArea
@@ -281,6 +343,15 @@ export default function Home() {
         onOpenChange={setSettingsOpen}
         settings={settings}
         onSettingsChange={setSettings}
+      />
+
+      <ChapterSettingsDialog
+        open={chapterSettingsOpen}
+        onOpenChange={setChapterSettingsOpen}
+        selectedPatterns={chapterPatterns}
+        currentBookTitle={book?.title}
+        canReparseCurrentBook={!!book && isCustomBook && book.format !== 'epub' && book.format !== 'builtin'}
+        onApply={handleChapterPatternsApply}
       />
 
       {isDragging && (
