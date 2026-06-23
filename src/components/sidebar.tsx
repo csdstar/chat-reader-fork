@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import type { Book } from '@/types';
-import { PanelLeftClose, Check, ChevronDown } from 'lucide-react';
+import { PanelLeftClose, Check } from 'lucide-react';
 
 const NAV_ITEMS = [
   { id: 'search', label: '搜索聊天', icon: '/icons/search-chat.svg' },
@@ -84,11 +84,12 @@ function AccountAvatar({ className = 'h-8 w-8 text-sm' }: { className?: string }
   );
 }
 
-function AccountProfile({ compact = false }: { compact?: boolean }) {
+function AccountProfile({ compact = false, onClick }: { compact?: boolean; onClick?: () => void }) {
   if (compact) {
     return (
       <button
         type="button"
+        onClick={onClick}
         className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-[#f3f3f3] active:bg-[#ededed]"
         title={`${USER_PROFILE.name} · ${USER_PROFILE.plan}`}
       >
@@ -100,6 +101,7 @@ function AccountProfile({ compact = false }: { compact?: boolean }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       className="flex h-12 w-full items-center gap-3 rounded-lg px-2 text-left transition-colors hover:bg-[#efefef] active:bg-[#e8e8e8]"
     >
       <AccountAvatar />
@@ -107,7 +109,6 @@ function AccountProfile({ compact = false }: { compact?: boolean }) {
         <div className="truncate text-sm font-medium text-[#171717]">{USER_PROFILE.name}</div>
         <div className="truncate text-xs text-[#777]">{USER_PROFILE.plan}</div>
       </div>
-      <ChevronDown className="h-4 w-4 shrink-0 text-[#8a8a8a]" strokeWidth={1.8} />
     </button>
   );
 }
@@ -129,9 +130,42 @@ export function Sidebar({
   onFileSelect,
   onOpenChapterSettings,
 }: SidebarProps) {
+  const [isBookTitleVisible, setIsBookTitleVisible] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chapterButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const revealCurrentChapterPendingRef = useRef(false);
+  const bookTitleRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearBookTitleRevealTimer = useCallback(() => {
+    if (bookTitleRevealTimerRef.current) {
+      clearTimeout(bookTitleRevealTimerRef.current);
+      bookTitleRevealTimerRef.current = null;
+    }
+  }, []);
+
+  const handleRevealBookTitle = useCallback(() => {
+    if (!book || collapsed) return;
+
+    if (bookTitleRevealTimerRef.current) {
+      clearTimeout(bookTitleRevealTimerRef.current);
+    }
+
+    setIsBookTitleVisible(true);
+    bookTitleRevealTimerRef.current = setTimeout(() => {
+      setIsBookTitleVisible(false);
+      bookTitleRevealTimerRef.current = null;
+    }, 3000);
+  }, [book, collapsed]);
+
+  useEffect(() => clearBookTitleRevealTimer, [clearBookTitleRevealTimer]);
+
+  useEffect(() => {
+    if (!collapsed && book?.title) return;
+
+    clearBookTitleRevealTimer();
+    const frameId = window.requestAnimationFrame(() => setIsBookTitleVisible(false));
+    return () => window.cancelAnimationFrame(frameId);
+  }, [book?.title, collapsed, clearBookTitleRevealTimer]);
 
   useEffect(() => {
     chapterButtonRefs.current = chapterButtonRefs.current.slice(0, book?.chapters.length ?? 0);
@@ -247,7 +281,10 @@ export function Sidebar({
       <aside className="fixed md:relative inset-y-0 left-0 z-50 flex h-full w-[260px] flex-col bg-[#f9f9f9]">
         <div className="flex-shrink-0 px-2 pb-2 pt-5">
           <div className="mb-5 flex h-8 items-center justify-between px-4">
-            <div className="text-[22px] font-semibold leading-none tracking-normal text-black">ChatGPT</div>
+            <div className="flex min-w-0 items-center gap-2">
+              <SidebarIcon src="/icons/chatgpt.svg" alt="" className="h-[22px] w-[22px]" />
+              <div className="text-[22px] font-semibold leading-none tracking-normal text-black">ChatGPT</div>
+            </div>
             <button
               onClick={() => onCollapsedChange(true)}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-[#efefef] active:bg-[#e8e8e8] transition-colors"
@@ -344,10 +381,10 @@ export function Sidebar({
         </div>
 
         <div className="flex-shrink-0 border-t border-black/5 px-2 py-2">
-          {book && (
+          {book && isBookTitleVisible && (
             <p className="mb-1 truncate rounded-lg px-2 py-2 text-xs text-[#7a7a7a] hover:bg-[#efefef]">《{book.title}》</p>
           )}
-          <AccountProfile />
+          <AccountProfile onClick={handleRevealBookTitle} />
         </div>
       </aside>
     </>
