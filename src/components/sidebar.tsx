@@ -1,17 +1,23 @@
 'use client';
 
-import { useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import type { Book } from '@/types';
-import { PanelLeftClose, Check } from 'lucide-react';
+import { PanelLeftClose, Check, ChevronDown } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { label: '搜索聊天', icon: '/icons/search-chat.svg' },
-  { label: '库', icon: '/icons/library.svg' },
-  { label: '项目', icon: '/icons/projects.svg' },
-  { label: '应用', icon: '/icons/apps.svg' },
-  { label: '更多', icon: '/icons/more.svg' },
-];
+  { id: 'search', label: '搜索聊天', icon: '/icons/search-chat.svg' },
+  { id: 'library', label: '库', icon: '/icons/library.svg' },
+  { id: 'projects', label: '项目', icon: '/icons/projects.svg' },
+  { id: 'apps', label: '应用', icon: '/icons/apps.svg' },
+  { id: 'more', label: '更多', icon: '/icons/more.svg' },
+] as const;
+
+const USER_PROFILE = {
+  name: 'csdstar',
+  plan: 'Plus会员',
+  initial: 'C',
+};
 
 function SidebarIcon({ src, alt, className = 'h-6 w-6' }: { src: string; alt: string; className?: string }) {
   return (
@@ -70,6 +76,42 @@ function ProgressCircle({ percent }: { percent: number }) {
   );
 }
 
+function AccountAvatar({ className = 'h-8 w-8 text-sm' }: { className?: string }) {
+  return (
+    <div className={`flex shrink-0 items-center justify-center rounded-full bg-[#202123] font-medium text-white ${className}`}>
+      {USER_PROFILE.initial}
+    </div>
+  );
+}
+
+function AccountProfile({ compact = false }: { compact?: boolean }) {
+  if (compact) {
+    return (
+      <button
+        type="button"
+        className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-[#f3f3f3] active:bg-[#ededed]"
+        title={`${USER_PROFILE.name} · ${USER_PROFILE.plan}`}
+      >
+        <AccountAvatar className="h-7 w-7 text-xs" />
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="flex h-12 w-full items-center gap-3 rounded-lg px-2 text-left transition-colors hover:bg-[#efefef] active:bg-[#e8e8e8]"
+    >
+      <AccountAvatar />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-medium text-[#171717]">{USER_PROFILE.name}</div>
+        <div className="truncate text-xs text-[#777]">{USER_PROFILE.plan}</div>
+      </div>
+      <ChevronDown className="h-4 w-4 shrink-0 text-[#8a8a8a]" strokeWidth={1.8} />
+    </button>
+  );
+}
+
 interface SidebarProps {
   book: Book | null;
   collapsed: boolean;
@@ -88,6 +130,40 @@ export function Sidebar({
   onOpenChapterSettings,
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chapterButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const revealCurrentChapterPendingRef = useRef(false);
+
+  useEffect(() => {
+    chapterButtonRefs.current = chapterButtonRefs.current.slice(0, book?.chapters.length ?? 0);
+  }, [book?.chapters.length]);
+
+  const scrollCurrentChapterIntoView = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    if (!book) return;
+
+    chapterButtonRefs.current[book.currentChapterIndex]?.scrollIntoView({
+      behavior,
+      block: 'center',
+      inline: 'nearest',
+    });
+  }, [book]);
+
+  const handleRevealCurrentChapter = useCallback(() => {
+    if (collapsed) {
+      revealCurrentChapterPendingRef.current = true;
+      onCollapsedChange(false);
+      return;
+    }
+
+    scrollCurrentChapterIntoView();
+  }, [collapsed, onCollapsedChange, scrollCurrentChapterIntoView]);
+
+  useEffect(() => {
+    if (collapsed || !revealCurrentChapterPendingRef.current) return;
+
+    revealCurrentChapterPendingRef.current = false;
+    const frameId = window.requestAnimationFrame(() => scrollCurrentChapterIntoView());
+    return () => window.cancelAnimationFrame(frameId);
+  }, [collapsed, scrollCurrentChapterIntoView]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -116,38 +192,42 @@ export function Sidebar({
     return (
       <>
         {fileInput}
-        <aside className="flex h-full w-[52px] shrink-0 flex-col items-center bg-white py-4">
-          <button
-            onClick={() => onCollapsedChange(false)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-[#f3f3f3] active:bg-[#ededed] transition-colors"
-            title="展开侧边栏"
-          >
-            <SidebarIcon src="/icons/chatgpt.svg" alt="ChatGPT" className="h-[26px] w-[26px]" />
-          </button>
+        <aside className="flex h-full w-[52px] shrink-0 flex-col items-center justify-between bg-white py-4">
+          <div className="flex flex-col items-center">
+            <button
+              onClick={() => onCollapsedChange(false)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-[#f3f3f3] active:bg-[#ededed] transition-colors"
+              title="展开侧边栏"
+            >
+              <SidebarIcon src="/icons/chatgpt.svg" alt="ChatGPT" className="h-[26px] w-[26px]" />
+            </button>
 
-          <div className="mt-9 flex flex-col items-center gap-5">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-[#f3f3f3] active:bg-[#ededed] transition-colors"
-              title="新聊天"
-            >
-              <SidebarIcon src="/icons/new-chat.svg" alt="新聊天" className="h-[23px] w-[23px]" />
-            </button>
-            <button
-              onClick={() => onCollapsedChange(false)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-[#f3f3f3] active:bg-[#ededed] transition-colors"
-              title="搜索聊天"
-            >
-              <SidebarIcon src="/icons/search-chat.svg" alt="搜索聊天" className="h-[24px] w-[24px]" />
-            </button>
-            <button
-              onClick={() => onCollapsedChange(false)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-[#f3f3f3] active:bg-[#ededed] transition-colors"
-              title="聊天"
-            >
-              <SidebarIcon src="/icons/chat.svg" alt="聊天" className="h-[25px] w-[25px]" />
-            </button>
+            <div className="mt-9 flex flex-col items-center gap-5">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-[#f3f3f3] active:bg-[#ededed] transition-colors"
+                title="新聊天"
+              >
+                <SidebarIcon src="/icons/new-chat.svg" alt="新聊天" className="h-[23px] w-[23px]" />
+              </button>
+              <button
+                onClick={handleRevealCurrentChapter}
+                className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-[#f3f3f3] active:bg-[#ededed] transition-colors"
+                title="搜索聊天"
+              >
+                <SidebarIcon src="/icons/search-chat.svg" alt="搜索聊天" className="h-[24px] w-[24px]" />
+              </button>
+              <button
+                onClick={() => onCollapsedChange(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-[#f3f3f3] active:bg-[#ededed] transition-colors"
+                title="聊天"
+              >
+                <SidebarIcon src="/icons/chat.svg" alt="聊天" className="h-[25px] w-[25px]" />
+              </button>
+            </div>
           </div>
+
+          <AccountProfile compact />
         </aside>
       </>
     );
@@ -199,12 +279,20 @@ export function Sidebar({
               );
               const className = 'flex h-11 w-full items-center gap-2.5 rounded-lg px-4 text-[15px] font-normal text-[#0f0f0f] transition-colors hover:bg-[#f1f1f1]';
 
-              return item.label === '应用' ? (
+              if (item.id === 'search') {
+                return (
+                  <button key={item.id} type="button" onClick={handleRevealCurrentChapter} className={className}>
+                    {content}
+                  </button>
+                );
+              }
+
+              return item.id === 'apps' ? (
                 <button key={item.label} type="button" onClick={onOpenChapterSettings} className={className}>
                   {content}
                 </button>
               ) : (
-                <div key={item.label} className={className}>
+                <div key={item.id} className={className}>
                   {content}
                 </div>
               );
@@ -231,6 +319,9 @@ export function Sidebar({
               return (
                 <button
                   key={index}
+                  ref={(node) => {
+                    chapterButtonRefs.current[index] = node;
+                  }}
                   onClick={() => {
                     onChapterSelect(index);
                     // 移动端选择章节后自动收起
@@ -252,12 +343,12 @@ export function Sidebar({
           </div>
         </div>
 
-        {/* 底部书名 */}
-        {book && (
-          <div className="flex-shrink-0 px-4 py-3">
-            <p className="truncate rounded-lg px-2 py-2 text-xs text-[#7a7a7a] hover:bg-[#efefef]">《{book.title}》</p>
-          </div>
-        )}
+        <div className="flex-shrink-0 border-t border-black/5 px-2 py-2">
+          {book && (
+            <p className="mb-1 truncate rounded-lg px-2 py-2 text-xs text-[#7a7a7a] hover:bg-[#efefef]">《{book.title}》</p>
+          )}
+          <AccountProfile />
+        </div>
       </aside>
     </>
   );
