@@ -11,7 +11,7 @@ interface ChatAreaProps {
   book: Book | null;
   isStreaming: boolean;
   fontSize: number;
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string) => boolean;
   onSkipStreaming: () => void;
   onOpenSettings: () => void;
 }
@@ -21,11 +21,31 @@ export const ChatArea = forwardRef<HTMLTextAreaElement, ChatAreaProps>(
     const scrollRef = useRef<HTMLDivElement>(null);
     const [autoScroll, setAutoScroll] = useState(true);
 
+    const resumeAutoScroll = useCallback(() => {
+      setAutoScroll(true);
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      });
+    }, []);
+
     const scrollToBottom = useCallback(() => {
       if (!scrollRef.current) return;
+      setAutoScroll(true);
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-      // autoScroll 会在滚动到底部后由 handleScroll 自动恢复
     }, []);
+
+    const handleSendMessage = useCallback((content: string) => {
+      const accepted = onSendMessage(content);
+      if (accepted) resumeAutoScroll();
+      return accepted;
+    }, [onSendMessage, resumeAutoScroll]);
+
+    const handleSkipStreaming = useCallback(() => {
+      resumeAutoScroll();
+      onSkipStreaming();
+    }, [onSkipStreaming, resumeAutoScroll]);
 
     const handleScroll = useCallback(() => {
       if (!scrollRef.current) return;
@@ -99,11 +119,11 @@ export const ChatArea = forwardRef<HTMLTextAreaElement, ChatAreaProps>(
           <div className="max-w-3xl mx-auto px-4 py-2">
             <ChatInput
               ref={inputRef}
-              onSend={onSendMessage}
+              onSend={handleSendMessage}
               disabled={!book}
               placeholder={isStreaming ? '' : '有问题，尽管问'}
               isStreaming={isStreaming}
-              onSkipStreaming={onSkipStreaming}
+              onSkipStreaming={handleSkipStreaming}
             />
           </div>
         </div>

@@ -4,7 +4,7 @@ import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { ArrowUp, FastForward } from 'lucide-react';
 
 interface ChatInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: string) => boolean;
   disabled?: boolean;
   placeholder?: string;
   isStreaming?: boolean;
@@ -22,8 +22,8 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       if (disabled) return;
-      onSend(value.trim());
-      setValue('');
+      const accepted = onSend(value.trim());
+      if (accepted) setValue('');
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {

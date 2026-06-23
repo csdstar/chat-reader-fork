@@ -6,6 +6,7 @@ import { ChatArea } from '@/components/chat-area';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ChapterSettingsDialog } from '@/components/chapter-settings-dialog';
 import { SettingsDialog, DEFAULT_SETTINGS, type Settings } from '@/components/settings-dialog';
+import { BossScreen, BOSS_SCENARIO_COUNT } from '@/components/boss-screen';
 import { DEFAULT_CHAPTER_PATTERNS, parseBook, getNextParagraphs, advanceProgress, goToNextChapter, goToChapter } from '@/lib/book-parser';
 import { parseEpub } from '@/lib/epub-parser';
 import { saveBook, loadBook, saveMessages, loadMessages, saveBookSource, loadBookSource, clearBook, hasExistingBook } from '@/lib/storage';
@@ -57,6 +58,8 @@ export default function Home() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [chapterSettingsOpen, setChapterSettingsOpen] = useState(false);
+  const [bossMode, setBossMode] = useState(false);
+  const [bossScenarioIndex, setBossScenarioIndex] = useState(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isCustomBook, setIsCustomBook] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -64,6 +67,99 @@ export default function Home() {
   const pendingFileRef = useRef<File | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const streamingRef = useRef<{ intervalId: NodeJS.Timeout; messageId: string; fullText: string; onComplete: () => void } | null>(null);
+  const leftControlPressedRef = useRef(false);
+  const rightControlPressedRef = useRef(false);
+  const rightControlUsedWithOtherKeyRef = useRef(false);
+  // React state updates are not synchronous enough to guard repeated keyboard events.
+  const sendLockRef = useRef(false);
+  const unlockTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const unlockSend = useCallback((delay = 0) => {
+    if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
+    if (delay <= 0) {
+      sendLockRef.current = false;
+      unlockTimerRef.current = null;
+      return;
+    }
+    unlockTimerRef.current = setTimeout(() => {
+      sendLockRef.current = false;
+      unlockTimerRef.current = null;
+    }, delay);
+  }, []);
+
+  useEffect(() => () => {
+    if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    const isRightControl = (event: KeyboardEvent) => (
+      event.code === 'ControlRight'
+      || (event.key === 'Control' && event.location === KeyboardEvent.DOM_KEY_LOCATION_RIGHT)
+    );
+
+    const isLeftControl = (event: KeyboardEvent) => (
+      event.code === 'ControlLeft'
+      || (event.key === 'Control' && event.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT)
+    );
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isRightControl(event)) {
+        if (event.repeat) return;
+        rightControlPressedRef.current = true;
+        rightControlUsedWithOtherKeyRef.current = leftControlPressedRef.current
+          || event.altKey
+          || event.shiftKey
+          || event.metaKey;
+        return;
+      }
+
+      if (isLeftControl(event)) {
+        leftControlPressedRef.current = true;
+        if (rightControlPressedRef.current) rightControlUsedWithOtherKeyRef.current = true;
+        return;
+      }
+
+      if (rightControlPressedRef.current) {
+        rightControlUsedWithOtherKeyRef.current = true;
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (isRightControl(event)) {
+        const shouldToggle = rightControlPressedRef.current && !rightControlUsedWithOtherKeyRef.current;
+        rightControlPressedRef.current = false;
+        rightControlUsedWithOtherKeyRef.current = false;
+
+        if (shouldToggle) {
+          event.preventDefault();
+          if (!bossMode) {
+            setBossScenarioIndex(Math.floor(Math.random() * BOSS_SCENARIO_COUNT));
+          }
+          setBossMode(current => !current);
+        }
+        return;
+      }
+
+      if (isLeftControl(event)) {
+        leftControlPressedRef.current = false;
+      }
+    };
+
+    const resetControlState = () => {
+      leftControlPressedRef.current = false;
+      rightControlPressedRef.current = false;
+      rightControlUsedWithOtherKeyRef.current = false;
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('keyup', handleKeyUp, true);
+    window.addEventListener('blur', resetControlState);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('keyup', handleKeyUp, true);
+      window.removeEventListener('blur', resetControlState);
+    };
+  }, [bossMode]);
 
   // 加载保存的数据或使用默认书籍
   useEffect(() => {
@@ -105,6 +201,7 @@ export default function Home() {
   }, []);
 
   const processFile = useCallback(async (file: File) => {
+    sendLockRef.current = true;
     setIsProcessingFile(true);
     setMessages([{ id: generateId(), role: 'system', content: `正在解析《${file.name}》...` }]);
 
@@ -136,8 +233,9 @@ export default function Home() {
       setMessages([{ id: generateId(), role: 'system', content: `解析《${file.name}》失败：${message}` }]);
     } finally {
       setIsProcessingFile(false);
+      unlockSend();
     }
-  }, [chapterPatterns, focusInput]);
+  }, [chapterPatterns, focusInput, unlockSend]);
 
   const handleChapterPatternsApply = useCallback(async (patterns: ChapterPattern[]) => {
     const nextPatterns = [...patterns];
@@ -150,6 +248,7 @@ export default function Home() {
     }
 
     setIsProcessingFile(true);
+    sendLockRef.current = true;
     try {
       const source = bookSource || rebuildBookSource(book);
       const reparsedBook = parseBook(source.content, source.filename, nextPatterns);
@@ -171,8 +270,9 @@ export default function Home() {
       setMessages([{ id: generateId(), role: 'system', content: `重新划分章节失败：${message}` }]);
     } finally {
       setIsProcessingFile(false);
+      unlockSend();
     }
-  }, [book, bookSource, focusInput, isCustomBook]);
+  }, [book, bookSource, focusInput, isCustomBook, unlockSend]);
 
   const handleFileDrop = useCallback(async (file: File) => {
     const exists = await hasExistingBook();
@@ -231,7 +331,8 @@ export default function Home() {
   }, []);
 
   const handleSendMessage = useCallback((content: string) => {
-    if (!book || isStreaming || isProcessingFile) return;
+    if (!book || sendLockRef.current || isStreaming || isProcessingFile) return false;
+    sendLockRef.current = true;
 
     const displayContent = content || FAKE_PROMPTS[Math.floor(Math.random() * FAKE_PROMPTS.length)];
     setMessages(prev => [...prev, { id: generateId(), role: 'user', content: displayContent }]);
@@ -244,38 +345,41 @@ export default function Home() {
           ? '🎉 恭喜！你已读完整本书。' 
           : '🎉 使用指南已读完。拖入 txt 文件开始阅读你的小说吧！';
         setMessages(prev => [...prev, { id: generateId(), role: 'system', content: endMessage }]);
+        unlockSend(250);
         focusInput();
-        return;
+        return true;
       }
-      setMessages(prev => [...prev, { id: generateId(), role: 'system', content: '本章已读完，发送任意消息进入下一章。' }]);
+      setMessages(prev => [...prev, { id: generateId(), role: 'system', content: '本章已读完，已进入下一章。' }]);
       setBook(goToNextChapter(book));
+      unlockSend(250);
       focusInput();
-      return;
+      return true;
     }
 
     const text = paragraphs.join('\n\n');
     setIsStreaming(true);
 
     streamText(text, () => {
-      setIsStreaming(false);
       const updatedBook = advanceProgress(book, paragraphs.length);
-      setBook(updatedBook);
+      const isLastChapter = book.currentChapterIndex >= book.chapters.length - 1;
+      const nextBook = isChapterEnd && !isLastChapter
+        ? goToNextChapter(updatedBook)
+        : updatedBook;
+
+      setBook(nextBook);
+      setIsStreaming(false);
       focusInput();
 
       if (isChapterEnd) {
-        const isLastChapter = book.currentChapterIndex >= book.chapters.length - 1;
-        setTimeout(() => {
-          const endMessage = isLastChapter
-            ? (isCustomBook ? '🎉 恭喜！你已读完整本书。' : '🎉 使用指南已读完。拖入 txt 文件开始阅读你的小说吧！')
-            : '本章已读完，发送任意消息进入下一章。';
-          setMessages(prev => [...prev, { id: generateId(), role: 'system', content: endMessage }]);
-          if (!isLastChapter) {
-            setBook(prev => prev ? goToNextChapter(prev) : null);
-          }
-        }, 500);
+        const endMessage = isLastChapter
+          ? (isCustomBook ? '🎉 恭喜！你已读完整本书。' : '🎉 使用指南已读完。拖入 txt 文件开始阅读你的小说吧！')
+          : '本章已读完，已进入下一章。';
+        setMessages(prev => [...prev, { id: generateId(), role: 'system', content: endMessage }]);
       }
+      unlockSend(isChapterEnd ? 250 : 0);
     });
-  }, [book, isStreaming, isProcessingFile, streamText, isCustomBook, settings.paragraphsPerMessage, focusInput]);
+    return true;
+  }, [book, isStreaming, isProcessingFile, streamText, isCustomBook, settings.paragraphsPerMessage, focusInput, unlockSend]);
 
   const handleChapterSelect = useCallback((index: number) => {
     if (!book || isStreaming) return;
@@ -353,6 +457,8 @@ export default function Home() {
         canReparseCurrentBook={!!book && isCustomBook && book.format !== 'epub' && book.format !== 'builtin'}
         onApply={handleChapterPatternsApply}
       />
+
+      {bossMode && <BossScreen scenarioIndex={bossScenarioIndex} />}
 
       {isDragging && (
         <div className="absolute inset-0 bg-white/90 flex items-center justify-center z-50 pointer-events-none">

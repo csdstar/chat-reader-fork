@@ -76,7 +76,7 @@ function SettingsDialogPanel({ settings, onOpenChange, onSettingsChange }: Omit<
   };
 
   return (
-    <DialogContent className="sm:max-w-md" showCloseButton={false} onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={handleCancel}>
+    <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto sm:max-w-md" showCloseButton={false} onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={handleCancel}>
       <DialogHeader>
         <DialogTitle>设置</DialogTitle>
       </DialogHeader>
@@ -149,6 +149,14 @@ function SettingsDialogPanel({ settings, onOpenChange, onSettingsChange }: Omit<
             />
             <span className="text-xs text-zinc-400">大</span>
           </div>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-zinc-100 pt-4">
+          <div>
+            <div className="text-sm font-medium text-zinc-700">老板键</div>
+            <div className="mt-1 text-xs text-zinc-400">切换静态开发对话页面</div>
+          </div>
+          <kbd className="rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-600 shadow-sm">右 Ctrl</kbd>
         </div>
       </div>
 

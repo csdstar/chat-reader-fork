@@ -35,7 +35,7 @@ IndexedDB stores books, messages, and raw TXT sources separately. Keep raw sourc
 
 ## Testing Guidelines
 
-No automated test framework is currently configured. Treat lint and production builds as required checks. Manually verify TXT/EPUB import, chapter navigation, pattern re-parsing, persistence after reload, and the settings dialog at short viewport heights.
+No automated test framework is currently configured. Treat lint and production builds as required checks. Manually verify TXT/EPUB import, chapter navigation, rapid Enter presses at chapter boundaries, the standalone right-Alt boss-screen toggle, pattern re-parsing, persistence after reload, and the settings dialog at short viewport heights.
 
 When adding tests, place focused `*.test.ts` or `*.test.tsx` files beside the module they cover. Parser changes should include representative chapter-title fixtures and malformed-input cases.
 
