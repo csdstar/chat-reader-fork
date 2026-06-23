@@ -48,6 +48,21 @@ const FAKE_PROMPTS = [
   '这个报错信息是什么意思',
 ];
 
+function getTimeSeededBossScenarioIndex(previousIndex: number) {
+  if (BOSS_SCENARIO_COUNT <= 1) return 0;
+
+  const highResolutionTime = typeof performance === 'undefined'
+    ? 0
+    : Math.floor(performance.now() * 1000);
+  const seed = Date.now() + highResolutionTime + Math.floor(Math.random() * 1000000);
+  const nextIndex = seed % BOSS_SCENARIO_COUNT;
+
+  if (nextIndex !== previousIndex) return nextIndex;
+
+  const offset = 1 + (seed % (BOSS_SCENARIO_COUNT - 1));
+  return (previousIndex + offset) % BOSS_SCENARIO_COUNT;
+}
+
 export default function Home() {
   const [book, setBook] = useState<Book | null>(null);
   const [bookSource, setBookSource] = useState<BookSource | null>(null);
@@ -67,6 +82,7 @@ export default function Home() {
   const pendingFileRef = useRef<File | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const streamingRef = useRef<{ intervalId: NodeJS.Timeout; messageId: string; fullText: string; onComplete: () => void } | null>(null);
+  const bossModeRef = useRef(false);
   const leftControlPressedRef = useRef(false);
   const rightControlPressedRef = useRef(false);
   const rightControlUsedWithOtherKeyRef = useRef(false);
@@ -89,6 +105,21 @@ export default function Home() {
 
   useEffect(() => () => {
     if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    bossModeRef.current = bossMode;
+  }, [bossMode]);
+
+  const toggleBossMode = useCallback(() => {
+    const nextBossMode = !bossModeRef.current;
+    bossModeRef.current = nextBossMode;
+
+    if (nextBossMode) {
+      setBossScenarioIndex(previousIndex => getTimeSeededBossScenarioIndex(previousIndex));
+    }
+
+    setBossMode(nextBossMode);
   }, []);
 
   useEffect(() => {
@@ -132,10 +163,7 @@ export default function Home() {
 
         if (shouldToggle) {
           event.preventDefault();
-          if (!bossMode) {
-            setBossScenarioIndex(Math.floor(Math.random() * BOSS_SCENARIO_COUNT));
-          }
-          setBossMode(current => !current);
+          toggleBossMode();
         }
         return;
       }
@@ -159,7 +187,7 @@ export default function Home() {
       window.removeEventListener('keyup', handleKeyUp, true);
       window.removeEventListener('blur', resetControlState);
     };
-  }, [bossMode]);
+  }, [toggleBossMode]);
 
   // 加载保存的数据或使用默认书籍
   useEffect(() => {
