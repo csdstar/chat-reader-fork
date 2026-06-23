@@ -15,7 +15,7 @@ const NAV_ITEMS = [
 
 const USER_PROFILE = {
   name: 'csdstar',
-  plan: 'Plus会员',
+  plan: 'Plus',
   initial: 'C',
 };
 
